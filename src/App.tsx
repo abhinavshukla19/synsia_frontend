@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import './App.css'
 
-const socket = io('https://synsiabackend-production.up.railway.app')
+const socket = io('http://34.47.183.253')
 
 function App() {
   const [text, settext] = useState('')
