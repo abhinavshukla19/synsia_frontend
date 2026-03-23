@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { io } from 'socket.io-client'
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -6,14 +6,73 @@ import './App.css'
 
 const socket = io('https://synsia.fourrnexus.com')
 
+const DEFAULT_ACCENT = { r: 245, g: 158, b: 11 }
+
+function extractVibrantAccentFromImageData(data: Uint8ClampedArray): { r: number; g: number; b: number } {
+  let wr = 0
+  let wg = 0
+  let wb = 0
+  let wsum = 0
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+    const a = data[i + 3]
+    if (a < 90) continue
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const sat = max === min ? 0 : (max - min) / 255
+    const w = sat * sat * (a / 255) + 0.015
+    wr += r * w
+    wg += g * w
+    wb += b * w
+    wsum += w
+  }
+  if (wsum < 1e-6) return DEFAULT_ACCENT
+  const r = Math.min(255, Math.max(24, Math.round(wr / wsum)))
+  const g = Math.min(255, Math.max(24, Math.round(wg / wsum)))
+  const b = Math.min(255, Math.max(24, Math.round(wb / wsum)))
+  return { r, g, b }
+}
+
+function accentCssVars(r: number, g: number, b: number): Record<string, string> {
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  const ink =
+    lum < 0.52
+      ? {
+          r: Math.min(255, Math.round(r + (255 - r) * 0.48)),
+          g: Math.min(255, Math.round(g + (255 - g) * 0.48)),
+          b: Math.min(255, Math.round(b + (255 - b) * 0.48)),
+        }
+      : { r, g, b }
+  return {
+    '--custom-accent-rgb': `${r}, ${g}, ${b}`,
+    '--accent': `rgb(${r} ${g} ${b})`,
+    '--accent-soft': `rgb(${r} ${g} ${b} / 0.24)`,
+    '--accent-ink': `rgb(${ink.r} ${ink.g} ${ink.b})`,
+  }
+}
+
 function App() {
   const [text, settext] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [connected, setConnected] = useState(socket.connected)
   const [previewMode, setPreviewMode] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const documentId = window.location.pathname.slice(1) || 'untitled'
+  const [docStatsExpanded, setDocStatsExpanded] = useState(false)
+  const [uiTheme, setUiTheme] = useState<'synsia' | 'zen' | 'noir' | 'custom'>('synsia')
+  const [customBgUrl, setCustomBgUrl] = useState('')
+  const [customAccentStyle, setCustomAccentStyle] = useState<Record<string, string> | null>(null)
+  const [documentId] = useState(() => {
+    const currentPath = window.location.pathname.replace(/^\/+/, '').trim()
+    if (currentPath) return currentPath
+
+    const generatedId = `note-${Date.now().toString(36)}`
+    window.history.replaceState(null, '', `/${generatedId}`)
+    return generatedId
+  })
   const lastSaved = useRef<number>(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lineNumbersRef = useRef<HTMLDivElement>(null)
@@ -71,14 +130,105 @@ function App() {
 
   const saveStatus = isSaving ? 'saving' : justSaved ? 'saved' : 'idle'
   const readTime = Math.max(1, Math.ceil(wordCount / 200))
+  const estimatedPages = Math.max(1, Math.ceil(wordCount / 500))
+  const writingGoal = 500
+  const goalProgress = Math.min(100, Math.round((wordCount / writingGoal) * 100))
+  const completionTone =
+    goalProgress >= 100 ? 'Great pace' : goalProgress >= 60 ? 'On track' : 'Keep writing'
+  const logoByTheme = {
+    synsia: '/logo-synsia-theme.svg',
+    zen: '/logo-zen-theme.svg',
+    noir: '/logo-noir-theme.svg',
+    custom: '/logo-synsia-theme.svg',
+  } as const
+  const topbarLogoByTheme = {
+    synsia: '/logo-synsia-header.svg',
+    zen: '/logo-zen-theme.svg',
+    noir: '/logo-noir-theme.svg',
+    custom: '/logo-synsia-header.svg',
+  } as const
+  const currentLogo = logoByTheme[uiTheme]
+  const currentTopbarLogo = topbarLogoByTheme[uiTheme]
+
+  const trimmedCustomBg = customBgUrl.trim()
+
+  useEffect(() => {
+    if (uiTheme !== 'custom') {
+      setCustomAccentStyle(null)
+      return
+    }
+    if (!trimmedCustomBg) {
+      setCustomAccentStyle(null)
+      return
+    }
+    const handle = window.setTimeout(() => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.referrerPolicy = 'no-referrer'
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          const side = 96
+          canvas.width = side
+          canvas.height = side
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })
+          if (!ctx) {
+            setCustomAccentStyle(null)
+            return
+          }
+          ctx.drawImage(img, 0, 0, side, side)
+          const { data } = ctx.getImageData(0, 0, side, side)
+          const { r, g, b } = extractVibrantAccentFromImageData(data)
+          setCustomAccentStyle(accentCssVars(r, g, b))
+        } catch {
+          setCustomAccentStyle(null)
+        }
+      }
+      img.onerror = () => setCustomAccentStyle(null)
+      img.src = trimmedCustomBg
+    }, 420)
+    return () => window.clearTimeout(handle)
+  }, [uiTheme, trimmedCustomBg])
+
+  const shellStyle: CSSProperties & Record<string, string> =
+    uiTheme === 'custom' && customAccentStyle ? { ...customAccentStyle } : {}
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 1600)
+    } catch {
+      setCopiedLink(false)
+    }
+  }
+
+  const downloadMarkdown = () => {
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+    const href = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = href
+    a.download = `${documentId}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(href)
+  }
 
   return (
-    <div className={`shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+    <div className={`shell theme-${uiTheme} ${sidebarOpen ? '' : 'sidebar-collapsed'}`} style={shellStyle}>
+      {uiTheme === 'custom' && trimmedCustomBg ? (
+        <div className="custom-bg-stack" aria-hidden>
+          <img className="custom-bg-fill" src={trimmedCustomBg} alt="" decoding="async" />
+          <div className="custom-bg-scrim" />
+          <img className="custom-bg-fit" src={trimmedCustomBg} alt="" decoding="async" />
+        </div>
+      ) : null}
 
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img className="sidebar-logo-img" src="/logo-synsia-new.svg" alt="Synsia – Live Notepad" />
+          <img className="sidebar-logo-img" src={currentLogo} alt="Synsia – Live Notepad" />
         </div>
 
         <div className="sidebar-nav">
@@ -93,9 +243,40 @@ function App() {
           </button>
         </div>
 
+        <div className="sidebar-tools">
+          <p className="nav-label">Quick Actions</p>
+          <button className="side-action-btn" onClick={copyShareLink}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 1 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span>{copiedLink ? 'Link copied' : 'Copy share link'}</span>
+          </button>
+          <button className="side-action-btn" onClick={downloadMarkdown}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Download .md</span>
+          </button>
+        </div>
+
+        <div className="sidebar-progress">
+          <p className="nav-label">Writing Goal</p>
+          <div className="goal-head">
+            <span>{wordCount.toLocaleString()} / {writingGoal} words</span>
+            <span>{goalProgress}%</span>
+          </div>
+          <div className="goal-track" aria-hidden="true">
+            <span className="goal-fill" style={{ width: `${goalProgress}%` }} />
+          </div>
+          <p className="goal-sub">{completionTone}</p>
+        </div>
+
         <div className="sidebar-stats-panel">
           <p className="nav-label">Document</p>
-          <div className="stat-grid">
+          <div className="stat-grid stat-grid--primary">
             <div className="stat-cell">
               <span className="stat-num">{wordCount.toLocaleString()}</span>
               <span className="stat-lbl">words</span>
@@ -105,21 +286,54 @@ function App() {
               <span className="stat-lbl">lines</span>
             </div>
             <div className="stat-cell">
+              <span className="stat-num">{readTime}m</span>
+              <span className="stat-lbl">read</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="doc-stats-toggle"
+            onClick={() => setDocStatsExpanded((v) => !v)}
+            aria-expanded={docStatsExpanded}
+            aria-controls="doc-stats-more"
+          >
+            <span>{docStatsExpanded ? 'Less stats' : 'More stats'}</span>
+            <svg
+              className={`doc-stats-chevron ${docStatsExpanded ? 'doc-stats-chevron--open' : ''}`}
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <div
+            id="doc-stats-more"
+            className={`doc-stats-more ${docStatsExpanded ? 'doc-stats-more--open' : ''}`}
+            aria-hidden={!docStatsExpanded}
+          >
+            <div className="stat-cell stat-cell--wide">
               <span className="stat-num">{characterCount.toLocaleString()}</span>
               <span className="stat-lbl">chars</span>
             </div>
-            <div className="stat-cell">
-              <span className="stat-num">{readTime}m</span>
-              <span className="stat-lbl">read</span>
+            <div className="doc-snaps">
+              <div className="snap-row">
+                <span className="snap-k">Pages</span>
+                <span className="snap-v">~{estimatedPages}</span>
+              </div>
+              <div className="snap-row">
+                <span className="snap-k">Readability</span>
+                <span className="snap-v">{wordCount > 1000 ? 'Long form' : wordCount > 350 ? 'Balanced' : 'Quick read'}</span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="sidebar-foot">
-          <div className={`conn-badge ${connected ? 'conn-badge--on' : 'conn-badge--off'}`}>
-            <span className="conn-dot" />
-            <span>{connected ? 'Connected' : 'Disconnected'}</span>
-          </div>
           <span className="sidebar-ver">UTF-8 · LF</span>
         </div>
       </aside>
@@ -134,7 +348,7 @@ function App() {
               <span /><span /><span />
             </button>
             <div className="topbar-logo">
-              <img src="/logo-synsia-new.svg" alt="Synsia – Live Notepad" />
+              <img src={currentTopbarLogo} alt="Synsia – Live Notepad" />
             </div>
             <nav className="breadcrumb">
               <span className="bc-dim">workspace</span>
@@ -151,6 +365,41 @@ function App() {
           </div>
 
           <div className="topbar-r">
+            <div className="theme-switcher" role="group" aria-label="Theme selector">
+              <button
+                className={`theme-btn ${uiTheme === 'synsia' ? 'theme-btn--active' : ''}`}
+                onClick={() => setUiTheme('synsia')}
+              >
+                Synsia
+              </button>
+              <button
+                className={`theme-btn ${uiTheme === 'zen' ? 'theme-btn--active' : ''}`}
+                onClick={() => setUiTheme('zen')}
+              >
+                Zen
+              </button>
+              <button
+                className={`theme-btn ${uiTheme === 'noir' ? 'theme-btn--active' : ''}`}
+                onClick={() => setUiTheme('noir')}
+              >
+                Noir
+              </button>
+              <button
+                className={`theme-btn ${uiTheme === 'custom' ? 'theme-btn--active' : ''}`}
+                onClick={() => setUiTheme('custom')}
+              >
+                Custom
+              </button>
+            </div>
+            {uiTheme === 'custom' && (
+              <input
+                className="custom-bg-input"
+                type="url"
+                value={customBgUrl}
+                onChange={(e) => setCustomBgUrl(e.target.value)}
+                placeholder="Paste background image URL"
+              />
+            )}
             <div className={`save-chip save-chip--${saveStatus}`}>
               {saveStatus === 'saving' && <><span className="chip-spin" /> Saving…</>}
               {saveStatus === 'saved' && <><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Saved {lastSavedLabel}</>}
