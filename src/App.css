@@ -634,8 +634,6 @@ button {
   /* Long words/URLs break instead of overflowing */
   overflow-wrap: break-word;
   word-wrap: break-word;
-  /* Disable internal scroll — let the canvas scroll instead */
-  overflow: hidden;
   /* Caret uses PLUM */
   caret-color: var(--plum);
 }

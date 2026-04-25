@@ -36,16 +36,16 @@ const socket = io('https://synsia.fourrnexus.com')
 // Mix of chaotic creatures, trickster gods, and hindi vibes
 // ============================================
 const USER_IDENTITIES = [
-  { name: 'Goblin',     color: '#9B5FAA' },  // chaotic
-  { name: 'Loki',       color: '#DC8296' },  // trickster god
-  { name: 'Pagal',      color: '#7B9BC0' },  // hindi: crazy
-  { name: 'Phantom',    color: '#9B87C9' },  // mysterious
-  { name: 'Bandar',     color: '#C09960' },  // hindi: monkey
-  { name: 'Menace',     color: '#B88A6B' },  // chaotic energy
-  { name: 'Anansi',     color: '#7B9B82' },  // spider trickster
-  { name: 'Tapori',     color: '#A67B5B' },  // hindi: street smart
-  { name: 'Kitsune',    color: '#7B7590' },  // japanese fox spirit
-  { name: 'Gremlin',    color: '#C49B8B' },  // small chaos
+  { name: 'Aurtur',     color: '#9B5FAA' },  
+  { name: 'Tommy Vercetti',       color: '#DC8296' },  
+  { name: 'Michael De Santa',      color: '#7B9BC0' },  
+  { name: 'Devin Weston',    color: '#9B87C9' },  
+  { name: 'Stoner',     color: '#C09960' },  
+  { name: 'Tracy',     color: '#B88A6B' },  
+  { name: 'Chainsmoker',     color: '#7B9B82' },  
+  { name: 'Cocaine',     color: '#A67B5B' },  
+  { name: 'Heroin',    color: '#7B7590' },  
+  { name: 'Cannabis',    color: '#C49B8B' },  
 ]
 
 type User = {
