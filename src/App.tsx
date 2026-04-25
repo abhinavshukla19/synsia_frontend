@@ -29,23 +29,22 @@ Start by deleting this and writing something of your own.
 // SOCKET CONNECTION
 // ============================================
 const socket = io('https://synsia.fourrnexus.com')
-// const socket = io('http://localhost:3000')
 
 // ============================================
 // USER IDENTITIES
 // Each visitor gets a random animal name + color
 // ============================================
 const USER_IDENTITIES = [
-  { name: 'El Rubio',  color: '#9B87C9' },
-  { name: 'Aurtur',   color: '#DC8296' },
-  { name: 'Heron', color: '#7B9B82' },
-  { name: 'Michel',  color: '#9B5FAA' },
-  { name: 'Tracy', color: '#7B9BC0' },
-  { name: 'Sia',  color: '#B88A6B' },
-  { name: 'Rasberry',  color: '#C09960' },
-  { name: 'Stag',  color: '#A67B5B' },
-  { name: 'Stoner',  color: '#2ddf6f' },
-  { name: 'Chainsmoker',   color: '#0deb27' },
+  { name: 'Anon',         color: '#9B5FAA' },
+  { name: 'Phantom',      color: '#DC8296' },
+  { name: 'Shadow',       color: '#7B7590' },
+  { name: 'Cipher',       color: '#7B9BC0' },
+  { name: 'Specter',      color: '#9B87C9' },
+  { name: 'Wraith',       color: '#B88A6B' },
+  { name: 'Vagrant',      color: '#C09960' },
+  { name: 'Drifter',      color: '#A67B5B' },
+  { name: 'Nomad',        color: '#7B9B82' },
+  { name: 'Ghost',        color: '#C49B8B' },
 ]
 
 type User = {
@@ -90,6 +89,7 @@ function App() {
   const [onlineUsers, setOnlineUsers] = useState<User[]>([])
   const [copied, setCopied] = useState(false)
   const [remoteCursors, setRemoteCursors] = useState<Record<string, { x: number; y: number }>>({})
+  const [sidebarOpen, setSidebarOpen] = useState(false) // mobile only
 
   // Current user
   const [me] = useState<User>(generateUser)
@@ -262,6 +262,7 @@ function App() {
     try {
       await navigator.clipboard.writeText(window.location.href)
       setCopied(true)
+      setSidebarOpen(false) // auto-close on mobile
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // silent
@@ -278,6 +279,7 @@ function App() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(href)
+    setSidebarOpen(false) // auto-close on mobile
   }
 
   // Map userId → User for cursor colors
@@ -287,10 +289,17 @@ function App() {
   // RENDER
   // ============================================
   return (
-    <div className="app">
+    <div className={`app ${sidebarOpen ? 'app--sidebar-open' : ''}`}>
       {/* Aurora background */}
       <div className="aurora" aria-hidden />
       <div className="grain" aria-hidden />
+
+      {/* Mobile backdrop (tap to close sidebar) */}
+      <div
+        className="sidebar-backdrop"
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden
+      />
 
       {/* ============ SIDEBAR ============ */}
       <aside className="sidebar">
@@ -380,6 +389,14 @@ function App() {
       <div className="main">
         {/* TOPBAR */}
         <header className="topbar">
+          <button
+            className="menu-btn"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Toggle sidebar"
+          >
+            <span /><span /><span />
+          </button>
+
           <nav className="crumbs">
             <span className="crumbs-root">Workspace</span>
             <span className="crumbs-sep">/</span>

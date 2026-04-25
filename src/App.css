@@ -399,6 +399,43 @@ button {
   padding: 13px 24px;
   border-bottom: 0.5px solid var(--border);
   flex-shrink: 0;
+  gap: 12px;
+}
+
+/* Hamburger menu button — desktop hidden, mobile visible */
+.menu-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 6px 5px;
+  gap: 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.menu-btn:hover {
+  background: var(--bg-subtle);
+}
+
+.menu-btn span {
+  display: block;
+  height: 1.5px;
+  width: 100%;
+  background: var(--ink-muted);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.menu-btn:hover span {
+  background: var(--ink);
+}
+
+/* Backdrop — only visible when sidebar is open on mobile */
+.sidebar-backdrop {
+  display: none;
 }
 
 .crumbs {
@@ -407,9 +444,11 @@ button {
   gap: 8px;
   font-size: 12px;
   color: var(--ink-subtle);
+  flex: 1;
+  min-width: 0;
 }
 
-.crumbs-sep { color: var(--ink-faint); }
+.crumbs-sep { color: var(--ink-faint); flex-shrink: 0; }
 
 .crumbs-current {
   font-family: 'JetBrains Mono', monospace;
@@ -418,12 +457,17 @@ button {
   background: var(--bg-subtle);
   padding: 3px 9px;
   border-radius: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .tools {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 /* Status chip */
@@ -565,9 +609,9 @@ button {
 
 .edit-wrap {
   display: flex;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px 40px 40px;
+  /* No container max-width — let the canvas use its full width.
+     The text itself caps at 75ch for readability (see .editor below). */
+  padding: 16px 64px 40px;
   min-height: 100%;
 }
 
@@ -593,7 +637,7 @@ button {
 /* Editor */
 .editor {
   flex: 1;
-  min-height: calc(100vh - 260px);
+  min-height: 60vh;
   background: transparent;
   border: none;
   outline: none;
@@ -603,6 +647,9 @@ button {
   font-size: 14.5px;
   line-height: 1.85;
   letter-spacing: 0.005em;
+  /* Cap text width at 75 characters (~optimal reading width)
+     without restricting the container — fixes cramping AND scroll issue */
+  max-width: 75ch;
   /* Caret uses PLUM */
   caret-color: var(--plum);
 }
@@ -619,13 +666,13 @@ button {
    PREVIEW
    ============================================ */
 .preview {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 20px 40px 40px;
+  /* Same approach as editor: cap text width but not container */
+  padding: 20px 64px 40px;
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.75;
   color: var(--ink);
+  max-width: 75ch;
 }
 
 .preview-empty {
@@ -897,33 +944,142 @@ button {
 }
 
 /* ============================================
-   RESPONSIVE
+   RESPONSIVE — Tablet
+   ============================================ */
+@media (max-width: 1024px) {
+  .edit-wrap, .preview { padding-left: 40px; padding-right: 40px; }
+  .dochead { padding: 32px 40px 18px; }
+}
+
+/* ============================================
+   RESPONSIVE — Mobile
+   Sidebar becomes a slide-out drawer
    ============================================ */
 @media (max-width: 768px) {
   .app {
+    /* Single column on mobile — sidebar overlays as drawer */
     grid-template-columns: 1fr;
   }
 
-  .sidebar {
-    display: none;
+  /* Show hamburger menu */
+  .menu-btn {
+    display: flex;
   }
 
+  /* Sidebar becomes a fixed-position drawer that slides in */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Drawer is open */
+  .app--sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Backdrop appears behind drawer when open */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .app--sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Smaller paddings */
   .topbar { padding: 12px 16px; }
   .dochead { padding: 24px 20px 16px; }
-  .doc-title { font-size: 28px; }
-  .edit-wrap { padding: 12px 20px 24px; }
-  .preview { padding: 16px 20px 24px; }
+  .doc-title { font-size: 26px; line-height: 1.15; }
+  .doc-meta { gap: 6px; }
+  .meta-chip { font-size: 11px; padding: 3px 8px; }
 
+  .edit-wrap {
+    padding: 12px 20px 24px;
+  }
+  .preview {
+    padding: 16px 20px 24px;
+  }
+
+  /* Hide line numbers on small screens to give text more room */
+  .line-col { display: none; }
+
+  /* Editor uses full width on mobile (no max-width) */
+  .editor { max-width: none; }
+  .preview { max-width: none; }
+
+  /* Hide root crumb on mobile */
+  .crumbs-root, .crumbs-sep { display: none; }
+  .crumbs-current { font-size: 11.5px; }
+
+  /* Stack colophon */
   .colophon {
     grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: 6px;
+    padding: 10px 16px;
+    text-align: center;
   }
 
   .col-l, .col-r {
     justify-self: center;
   }
 
-  .col-c { font-size: 11.5px; }
-  .crumbs-root { display: none; }
+  .col-c {
+    font-size: 11.5px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Smaller status chip on mobile */
+  .status-chip {
+    padding: 4px 8px;
+    font-size: 9.5px;
+  }
+
+  .btn-mono {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+
+  /* Reduce aurora intensity on mobile (less GPU heavy) */
+  .aurora {
+    filter: blur(30px);
+    animation-duration: 40s;
+  }
+
+  /* Remote cursor labels smaller */
+  .cursor-label {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+}
+
+/* ============================================
+   RESPONSIVE — Very small phones (under 380px)
+   ============================================ */
+@media (max-width: 380px) {
+  .topbar { padding: 10px 12px; gap: 8px; }
+  .dochead { padding: 20px 16px 14px; }
+  .doc-title { font-size: 22px; }
+  .edit-wrap, .preview { padding: 12px 16px 20px; }
+
+  /* Hide some non-essential UI */
+  .meta-chip:nth-child(n+5) { display: none; }
+
+  .colophon { padding: 10px 12px; }
 }
