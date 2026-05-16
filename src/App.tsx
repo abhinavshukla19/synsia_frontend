@@ -36,16 +36,16 @@ const socket = io('https://synsia.fourrnexus.com')
 // Mix of chaotic creatures, trickster gods, and hindi vibes
 // ============================================
 const USER_IDENTITIES = [
-  { name: 'Aurtur',     color: '#9B5FAA' },  
-  { name: 'Tommy Vercetti',       color: '#DC8296' },  
-  { name: 'Michael De Santa',      color: '#7B9BC0' },  
-  { name: 'Devin Weston',    color: '#9B87C9' },  
-  { name: 'Stoner',     color: '#C09960' },  
-  { name: 'Tracy',     color: '#B88A6B' },  
-  { name: 'Chainsmoker',     color: '#7B9B82' },  
-  { name: 'Cocaine',     color: '#A67B5B' },  
-  { name: 'Heroin',    color: '#7B7590' },  
-  { name: 'Cannabis',    color: '#C49B8B' },  
+  { name: 'Goblin',     color: '#818CF8' },  // indigo
+  { name: 'Loki',       color: '#FB7185' },  // rose
+  { name: 'Cocane',      color: '#2DD4BF' },  // teal
+  { name: 'Phantom',    color: '#C084FC' },  // purple
+  { name: 'Brownie',     color: '#FBBF24' },  // amber
+  { name: 'Menace',     color: '#F472B6' },  // pink
+  { name: 'Aurtur',     color: '#34D399' },  // emerald
+  { name: 'Michel',     color: '#60A5FA' },  // sky blue
+  { name: 'Doraemon',    color: '#A78BFA' },  // lavender
+  { name: 'Chainsmoker',    color: '#FB923C' },  // orange
 ]
 
 type User = {
@@ -245,6 +245,9 @@ function App() {
   const charCount = text.length
   const lineCount = text ? text.split('\n').length : 1
 
+  // Detect if doc has real user content (more than just the starter)
+  const isFreshDoc = !text.trim() || text.trim() === STARTER_TEXT.trim()
+
   const othersOnline = onlineUsers.filter(u => u.id !== me.id)
   const totalHere = onlineUsers.length || 1
 
@@ -405,35 +408,46 @@ function App() {
           </div>
         </header>
 
-        {/* DOCUMENT HEADER */}
-        <div className="dochead">
-          <div className="eyebrow">
-            <span className="eyebrow-line" />
-            <span>A notepad · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+        {/* DOCUMENT HEADER — full on fresh docs, slim once user is writing */}
+        {isFreshDoc ? (
+          <div className="dochead">
+            <div className="eyebrow">
+              <span className="eyebrow-line" />
+              <span>A notepad · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+            </div>
+            <h1 className="doc-title">
+              A small place to <em>think</em> out loud
+            </h1>
+            <div className="doc-meta">
+              <span className="meta-chip">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Fresh page
+              </span>
+              <span className="meta-dot" />
+              <span className="meta-chip">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                </svg>
+                {totalHere > 1 ? `${totalHere} writing together` : 'Just you'}
+              </span>
+              <span className="meta-dot" />
+              <span className="meta-chip">Syncs live</span>
+            </div>
           </div>
-          <h1 className="doc-title">
-            A small place to <em>think</em> out loud
-          </h1>
-          <div className="doc-meta">
-            <span className="meta-chip">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Fresh page
+        ) : (
+          <div className="dochead dochead--slim">
+            <span className="slim-eyebrow">
+              <span className="eyebrow-line" />
+              {totalHere > 1
+                ? `${totalHere} writing together`
+                : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
             </span>
-            <span className="meta-dot" />
-            <span className="meta-chip">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              {totalHere > 1 ? `${totalHere} writing together` : 'Just you'}
-            </span>
-            <span className="meta-dot" />
-            <span className="meta-chip">Syncs live</span>
           </div>
-        </div>
+        )}
 
         {/* CANVAS */}
         <main

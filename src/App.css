@@ -6,50 +6,62 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ============================================
-   SEMANTIC TRI-COLOR SYSTEM
-   - PLUM   = brand, your name, primary identity
-   - ROSE   = decorative, headings, emphasis
-   - RED    = offline, errors, unsaved warnings
+   VISION PRO PALETTE
+   Cool blue base + 5 playful accents
+   - INDIGO  = brand primary (your name, brand mark)
+   - PURPLE  = headings, "you" badge, emphasis
+   - TEAL    = live status, success, active states
+   - ROSE    = decorative lines, alerts, attention
+   - AMBER   = secondary user avatars, warmth
    ============================================ */
 :root {
-  /* Backgrounds */
-  --bg:           #1A1719;   /* main canvas */
-  --bg-sidebar:   #161315;   /* slightly darker, depth */
-  --bg-raised:    #221E20;   /* cards, surfaces */
-  --bg-subtle:    rgba(232, 227, 216, 0.03);
+  /* Backgrounds — deep space blue, not gray */
+  --bg:           #0C1220;
+  --bg-sidebar:   #080E1A;
+  --bg-raised:    #131A2C;
+  --bg-subtle:    rgba(180, 200, 255, 0.04);
 
-  /* Ink (text) */
-  --ink:          #E8E3D8;
-  --ink-muted:    #A8A095;
-  --ink-subtle:   #7A7168;
-  --ink-dim:      #5A5249;
-  --ink-faint:    #4D4740;
+  /* Ink — cool whites, not warm beige */
+  --ink:          #E6EFFA;
+  --ink-muted:    #B4C3DC;
+  --ink-subtle:   #9DAFC8;
+  --ink-dim:      #5B6B85;
+  --ink-faint:    #3E4A60;
 
-  /* Borders */
-  --border:         rgba(232, 227, 216, 0.06);
-  --border-strong:  rgba(232, 227, 216, 0.1);
+  /* Borders — subtle blue tint */
+  --border:         rgba(180, 200, 255, 0.07);
+  --border-strong:  rgba(180, 200, 255, 0.12);
 
-  /* SEMANTIC COLORS */
+  /* PRIMARY — Indigo (brand) */
+  --plum:         #818CF8;
+  --plum-light:   #A5B4FC;
+  --plum-soft:    rgba(129, 140, 248, 0.14);
+  --plum-glow:    rgba(129, 140, 248, 0.5);
 
-  /* Plum — brand primary */
-  --plum:         #9B5FAA;
-  --plum-light:   #BC88C9;
-  --plum-soft:    rgba(155, 95, 170, 0.12);
-  --plum-glow:    rgba(155, 95, 170, 0.4);
+  /* DECORATIVE — Purple (headings, you badge) */
+  --rose:         #C084FC;
+  --rose-light:   #D8B4FE;
+  --rose-soft:    rgba(192, 132, 252, 0.14);
 
-  /* Rose — decorative accent */
-  --rose:         #DC8296;
-  --rose-light:   #E8A6B3;
-  --rose-soft:    rgba(220, 130, 150, 0.12);
+  /* ALERT — Hot Rose (offline, errors) */
+  --red:          #FB7185;
+  --red-light:    #FDA4AF;
+  --red-soft:     rgba(251, 113, 133, 0.14);
 
-  /* Red — alerts */
-  --red:          #C85A66;
-  --red-light:    #E49499;
-  --red-soft:     rgba(200, 90, 102, 0.12);
+  /* SUCCESS — Teal (live status, saved) */
+  --live:         #2DD4BF;
+  --live-light:   #5EEAD4;
+  --live-soft:    rgba(45, 212, 191, 0.14);
 
-  /* Semantic success (online) — soft green */
-  --live:         #7FB58E;
-  --live-soft:    rgba(127, 181, 142, 0.12);
+  /* WARMTH — Amber (secondary accent, used in gradients) */
+  --amber:        #FBBF24;
+  --amber-soft:   rgba(251, 191, 36, 0.14);
+
+  /* Signature brand gradient — indigo → purple */
+  --brand-gradient: linear-gradient(135deg, #818CF8 0%, #C084FC 100%);
+
+  /* Eyebrow gradient — purple → rose */
+  --eyebrow-gradient: linear-gradient(90deg, #C084FC 0%, #FB7185 100%);
 }
 
 /* ============================================
@@ -96,8 +108,8 @@ button {
 }
 
 /* ============================================
-   AURORA — Plum + Rose + subtle Red
-   Animated gradient that drifts softly
+   AURORA — multicolor cold playful glow
+   Indigo + Purple + Teal + Rose
    ============================================ */
 .aurora {
   position: absolute;
@@ -105,12 +117,12 @@ button {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 55% 45% at 25% 20%, rgba(155, 95, 170, 0.22), transparent 60%),
-    radial-gradient(ellipse 45% 35% at 80% 70%, rgba(220, 130, 150, 0.14), transparent 60%),
-    radial-gradient(ellipse 40% 30% at 60% 100%, rgba(200, 90, 102, 0.08), transparent 60%),
-    radial-gradient(ellipse 35% 25% at 10% 90%, rgba(155, 95, 170, 0.1), transparent 60%);
-  animation: aurora 26s ease-in-out infinite alternate;
-  filter: blur(40px);
+    radial-gradient(ellipse 50% 40% at 15% 15%, rgba(129, 140, 248, 0.22), transparent 60%),
+    radial-gradient(ellipse 45% 35% at 80% 25%, rgba(192, 132, 252, 0.18), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 75% 90%, rgba(45, 212, 191, 0.13), transparent 60%),
+    radial-gradient(ellipse 35% 25% at 25% 95%, rgba(251, 113, 133, 0.11), transparent 60%);
+  animation: aurora 28s ease-in-out infinite alternate;
+  filter: blur(55px);
 }
 
 @keyframes aurora {
@@ -141,10 +153,10 @@ button {
   z-index: 3;
   background: var(--bg-sidebar);
   border-right: 0.5px solid var(--border);
-  padding: 18px 14px;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   overflow-y: auto;
 }
 
@@ -159,7 +171,7 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--plum-light) 0%, var(--plum) 100%);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,7 +180,7 @@ button {
   font-size: 20px;
   font-weight: 500;
   font-style: italic;
-  box-shadow: 0 2px 12px var(--plum-glow);
+  box-shadow: 0 2px 14px var(--plum-glow);
 }
 
 .brand-name {
@@ -466,8 +478,14 @@ button {
 .tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-shrink: 0;
+  /* Subtle container — groups Live + Preview together so they
+     don't float as disconnected elements */
+  padding: 3px;
+  background: var(--bg-subtle);
+  border: 0.5px solid var(--border);
+  border-radius: 7px;
 }
 
 /* Status chip */
@@ -535,6 +553,24 @@ button {
   flex-shrink: 0;
 }
 
+/* Slim variant — shown once user has real content
+   Replaces the big "landing page" title with a tiny status strip */
+.dochead--slim {
+  padding: 14px 48px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.slim-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-subtle);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
 .eyebrow {
   display: flex;
   align-items: center;
@@ -547,21 +583,22 @@ button {
   margin-bottom: 16px;
 }
 
-/* Eyebrow line uses ROSE (decorative) */
+/* Eyebrow line — purple to rose gradient (multicolor pop) */
 .eyebrow-line {
   width: 26px;
   height: 1.5px;
-  background: var(--rose);
+  background: var(--eyebrow-gradient);
   border-radius: 2px;
 }
 
 .doc-title {
   font-family: 'Newsreader', serif;
-  font-size: 36px;
+  /* Smaller than before (was 36px) — less landing-page energy */
+  font-size: 30px;
   font-weight: 400;
   color: var(--ink);
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
   margin-bottom: 14px;
 }
 
@@ -629,9 +666,10 @@ button {
   font-size: 14.5px;
   line-height: 1.85;
   letter-spacing: 0.005em;
-  /* Cap text width — but generously so it uses the canvas */
-  max-width: 1100px;
-  /* Long words/URLs break instead of overflowing */
+  /* Width is controlled by .edit-wrap padding, not max-width.
+     This prevents text from being clipped and lets it use the full canvas. */
+  width: 100%;
+  /* Long words break instead of overflowing */
   overflow-wrap: break-word;
   word-wrap: break-word;
   /* Caret uses PLUM */
@@ -650,13 +688,19 @@ button {
    PREVIEW
    ============================================ */
 .preview {
-  /* Same approach as editor */
+  /* Width controlled by padding, not max-width */
   padding: 20px 64px 40px;
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.75;
-  color: var(--ink);
-  max-width: 1100px;
+  /* Body text uses muted ink so serif headings have more contrast */
+  color: var(--ink-muted);
+}
+
+/* Paragraphs and list items get the muted body color */
+.preview p,
+.preview li {
+  color: var(--ink-muted);
 }
 
 .preview-empty {
@@ -676,6 +720,28 @@ button {
   margin: 1.5em 0 0.5em;
   line-height: 1.2;
   color: var(--ink);
+  /* Position relative for the decorative pseudo-element */
+  position: relative;
+}
+
+/* H1 and H2 get a decorative accent bar — ties headings to brand */
+.preview h1::before,
+.preview h2::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0.7em;
+  border-radius: 2px;
+  background: var(--brand-gradient);
+}
+
+/* H3/H4 get a smaller indent without the bar — gentler hierarchy */
+.preview h3,
+.preview h4 {
+  color: var(--plum-light);
 }
 
 .preview h1 { font-size: 2.3em; margin-top: 0.3em; }
@@ -862,9 +928,13 @@ button {
   box-shadow: 0 0 6px var(--plum-glow);
 }
 
-/* Your name uses PLUM — this is the brand */
+/* Your name uses the brand gradient — signature detail */
 .col-name {
-  color: var(--plum-light);
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--plum-light); /* fallback */
   font-family: 'Newsreader', serif;
   font-style: normal;
   font-weight: 500;
@@ -982,7 +1052,8 @@ button {
   /* Smaller paddings */
   .topbar { padding: 12px 16px; }
   .dochead { padding: 24px 20px 16px; }
-  .doc-title { font-size: 26px; line-height: 1.15; }
+  .dochead--slim { padding: 10px 20px; }
+  .doc-title { font-size: 24px; line-height: 1.15; }
   .doc-meta { gap: 6px; }
   .meta-chip { font-size: 11px; padding: 3px 8px; }
 
