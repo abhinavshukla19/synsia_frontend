@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react'
-import { io } from 'socket.io-client'
+import { createRealtime, realtimeUrl, resolveDocumentId } from './lib/realtime'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './App.css'
@@ -26,9 +26,12 @@ Start by deleting this and writing something of your own.
 `
 
 // ============================================
-// SOCKET CONNECTION
+// REALTIME CONNECTION
+// One Cloudflare Durable Object per document — the id is in the URL, so it has
+// to be resolved before the socket opens.
 // ============================================
-const socket = io('https://synsia.fourrnexus.com')
+const DOCUMENT_ID = resolveDocumentId()
+const socket = createRealtime(realtimeUrl(DOCUMENT_ID))
 
 // ============================================
 // USER IDENTITIES
@@ -95,14 +98,8 @@ function App() {
   // Current user
   const [me] = useState<User>(generateUser)
 
-  // Document ID from URL
-  const [documentId] = useState(() => {
-    const path = window.location.pathname.replace(/^\/+/, '').trim()
-    if (path) return path
-    const newId = `note-${Date.now().toString(36)}`
-    window.history.replaceState(null, '', `/${newId}`)
-    return newId
-  })
+  // Resolved at module load, because the connection needs it before mount.
+  const documentId = DOCUMENT_ID
 
   // ============================================
   // REFS

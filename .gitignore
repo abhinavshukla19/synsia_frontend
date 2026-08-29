@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local env overrides only — .env.development and .env.production carry the
+# public Worker URL and are meant to be committed.
+.env.local
+.env.*.local
