@@ -1,3 +1,69 @@
+/* ------------------------------------------------------------------
+   Synsia
+
+   A masthead over a workspace. Full bleed — no floating page — with a
+   standing sidebar and a status bar so the frame carries structure
+   instead of leaving a short note stranded in empty space.
+
+   Colour does one job: it tells you who is here. Every writer gets
+   their own, and it follows them through their initial, their cursor
+   and their mark in the document.
+------------------------------------------------------------------ */
+
+@import '@fontsource-variable/fraunces/index.css';
+@import '@fontsource-variable/inter-tight/index.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+:root {
+  --display: 'Fraunces Variable', Georgia, serif;
+  --ui: 'Inter Tight Variable', system-ui, -apple-system, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  --rail-h: 3.5rem;
+  --side-w: 15rem;
+  --status-h: 1.9rem;
+  --measure: 84ch;
+  /* Breathing room inside the column, between its edge rules and the text. */
+  --gutter: 2.25rem;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Night — the default. Three planes of depth so nothing reads flat. */
+:root,
+:root[data-theme='dark'] {
+  --bg: #101216;
+  --panel: #15181e;
+  --sunk: #0c0e12;
+  --ink: #f2f0ec;
+  --soft: #9ba1ae;
+  --faint: #5c6270;
+  --rule: #242832;
+  --rule-soft: #1c2029;
+  --column: #14171c;
+  --accent: #e8503a;
+  --accent-ink: #ffffff;
+  --ok: #57c99a;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f7f6f3;
+  --panel: #efede8;
+  --sunk: #e6e3dd;
+  --ink: #17191d;
+  --soft: #585e6a;
+  --faint: #8a8f9a;
+  --rule: #dcd9d2;
+  --rule-soft: #e6e3dd;
+  --column: #fdfcfa;
+  --accent: #cf3f2a;
+  --accent-ink: #ffffff;
+  --ok: #2f8f66;
+  color-scheme: light;
+}
+
 *,
 *::before,
 *::after {
@@ -7,12 +73,52 @@
 html,
 body,
 #root {
+  height: 100%;
   margin: 0;
   padding: 0;
-  height: 100%;
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-  background-color: #020617;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+body,
+[data-surface] {
+  transition:
+    background-color 0.4s var(--ease),
+    color 0.4s var(--ease),
+    border-color 0.4s var(--ease);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

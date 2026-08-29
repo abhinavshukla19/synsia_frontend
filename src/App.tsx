@@ -1,18 +1,13 @@
-import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react'
-import { createRealtime, realtimeUrl, resolveDocumentId } from './lib/realtime'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { createRealtime, realtimeUrl, resolveDocumentId } from './lib/realtime'
+import { useTheme } from './lib/theme'
+import { attribute, decode, encode, toSpans, type Runs } from './lib/authorship'
 import './App.css'
 
-// ============================================
-// CREATOR — your name, visible in every new note
-// ============================================
 const CREATOR_NAME = 'Abhinav Shukla'
 
-// ============================================
-// STARTER TEXT — what appears when someone opens a new note
-// This is your signature inside the canvas
-// ============================================
 const STARTER_TEXT = `# A notepad by ${CREATOR_NAME}
 
 Welcome. This is a live, collaborative space — whatever you type here
@@ -33,229 +28,198 @@ Start by deleting this and writing something of your own.
 const DOCUMENT_ID = resolveDocumentId()
 const socket = createRealtime(realtimeUrl(DOCUMENT_ID))
 
-// ============================================
-// USER IDENTITIES
-// Each visitor gets a random name + color
-// Mix of chaotic creatures, trickster gods, and hindi vibes
-// ============================================
+// Each writer keeps one colour for the session. It marks their initial in the
+// masthead and, more importantly, every character they type.
 const USER_IDENTITIES = [
-  { name: 'Goblin',     color: '#818CF8' },  // indigo
-  { name: 'Loki',       color: '#FB7185' },  // rose
-  { name: 'Cocane',      color: '#2DD4BF' },  // teal
-  { name: 'Phantom',    color: '#C084FC' },  // purple
-  { name: 'Brownie',     color: '#FBBF24' },  // amber
-  { name: 'Menace',     color: '#F472B6' },  // pink
-  { name: 'Aurtur',     color: '#34D399' },  // emerald
-  { name: 'Michel',     color: '#60A5FA' },  // sky blue
-  { name: 'Doraemon',    color: '#A78BFA' },  // lavender
-  { name: 'Chainsmoker',    color: '#FB923C' },  // orange
+  { name: 'Goblin', color: '#7AA2F7' },
+  { name: 'Loki', color: '#FF6B6B' },
+  { name: 'Cocane', color: '#38D9C4' },
+  { name: 'Phantom', color: '#C07BF5' },
+  { name: 'Brownie', color: '#F5B33F' },
+  { name: 'Menace', color: '#FF7EB6' },
+  { name: 'Aurtur', color: '#57C99A' },
+  { name: 'Michel', color: '#59B8F0' },
+  { name: 'Doraemon', color: '#9C8BFA' },
+  { name: 'Chainsmoker', color: '#FF9147' },
 ]
 
-type User = {
-  id: string
-  name: string
-  color: string
-}
+type User = { id: string; name: string; color: string }
 
 function generateUser(): User {
   const pick = USER_IDENTITIES[Math.floor(Math.random() * USER_IDENTITIES.length)]
-  return {
-    id: Math.random().toString(36).slice(2, 10),
-    ...pick,
-  }
+  return { id: Math.random().toString(36).slice(2, 10), ...pick }
 }
 
-// ============================================
-// THROTTLE — for cursor broadcasts (max 20/sec)
-// ============================================
-function throttle<TArgs extends unknown[]>(
-  fn: (...args: TArgs) => void,
-  ms: number
-): (...args: TArgs) => void {
-  let last = 0
-  return (...args: TArgs) => {
-    const now = Date.now()
-    if (now - last >= ms) {
-      last = now
-      fn(...args)
-    }
-  }
+const Icon = {
+  link: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 1 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+  check: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  down: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  ),
+  sun: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  ),
+  moon: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </svg>
+  ),
 }
 
 function App() {
-  // ============================================
-  // STATE
-  // ============================================
+  const { theme, toggle: toggleTheme } = useTheme()
+
   const [text, setText] = useState('')
   const [isPreview, setIsPreview] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [isConnected, setIsConnected] = useState(socket.connected)
   const [onlineUsers, setOnlineUsers] = useState<User[]>([])
   const [copied, setCopied] = useState(false)
-  const [remoteCursors, setRemoteCursors] = useState<Record<string, { x: number; y: number }>>({})
-  const [sidebarOpen, setSidebarOpen] = useState(false) // mobile only
+  /** One author id per character of `text`. */
+  const [authors, setAuthors] = useState<string[]>([])
+  /** Everyone ever seen in this document, so text keeps its colour after
+   *  its author closes the tab. */
+  const [roster, setRoster] = useState<Record<string, User>>({})
 
-  // Current user
   const [me] = useState<User>(generateUser)
-
-  // Resolved at module load, because the connection needs it before mount.
   const documentId = DOCUMENT_ID
 
-  // ============================================
-  // REFS
-  // ============================================
   const saveTimeoutRef = useRef<number | null>(null)
   const latestTextRef = useRef<string>('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const canvasRef = useRef<HTMLDivElement>(null)
+  const latestAuthorsRef = useRef<string[]>([])
+  const workRef = useRef<HTMLElement>(null)
 
-  // ============================================
-  // EFFECT: Socket setup
-  // ============================================
   useEffect(() => {
     socket.emit('join-document', { documentId, user: me })
 
-    const handleConnect = () => setIsConnected(true)
-    const handleDisconnect = () => setIsConnected(false)
+    const onConnect = () => setIsConnected(true)
+    const onDisconnect = () => setIsConnected(false)
 
-    const handleLoad = (content: string) => {
-      // Empty document → seed with starter text (Abhinav's signature)
+    const apply = (content: string, runs: Runs | undefined) => {
+      const next = decode(runs, content.length)
+      setText(content)
+      setAuthors(next)
+      latestTextRef.current = content
+      latestAuthorsRef.current = next
+    }
+
+    const onLoad = (payload: { content: string; runs?: Runs } | string) => {
+      // Tolerate the old shape, in case a document predates authorship.
+      const content = typeof payload === 'string' ? payload : (payload?.content ?? '')
+      const runs = typeof payload === 'string' ? undefined : payload?.runs
+
       if (!content || !content.trim()) {
+        const seeded: string[] = new Array(STARTER_TEXT.length).fill('')
         setText(STARTER_TEXT)
+        setAuthors(seeded)
         latestTextRef.current = STARTER_TEXT
-        socket.emit('save-document', { documentId, content: STARTER_TEXT })
+        latestAuthorsRef.current = seeded
+        socket.emit('save-document', { documentId, content: STARTER_TEXT, runs: encode(seeded) })
       } else {
-        setText(content)
-        latestTextRef.current = content
+        apply(content, runs)
       }
     }
 
-    const handleReceive = (content: string) => {
-      setText(content)
-      latestTextRef.current = content
+    const onReceive = (payload: { content: string; runs?: Runs } | string) => {
+      if (typeof payload === 'string') apply(payload, undefined)
+      else apply(payload?.content ?? '', payload?.runs)
     }
 
-    const handleUsers = (users: User[]) => {
+    const onUsers = (users: User[]) => {
       setOnlineUsers(users)
-    }
-
-    const handleSaveSuccess = () => {
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus('idle'), 2200)
-    }
-
-    const handleSaveError = () => {
-      setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 3000)
-    }
-
-    const handleRemoteCursor = ({ userId, x, y }: { userId: string; x: number; y: number }) => {
-      setRemoteCursors(prev => ({ ...prev, [userId]: { x, y } }))
-    }
-
-    const handleCursorLeave = ({ userId }: { userId: string }) => {
-      setRemoteCursors(prev => {
+      setRoster((prev) => {
         const next = { ...prev }
-        delete next[userId]
+        for (const u of users) next[u.id] = u
         return next
       })
     }
 
-    socket.on('connect', handleConnect)
-    socket.on('disconnect', handleDisconnect)
-    socket.on('load-content', handleLoad)
-    socket.on('receive-changes', handleReceive)
-    socket.on('users-update', handleUsers)
-    socket.on('save-success', handleSaveSuccess)
-    socket.on('save-error', handleSaveError)
-    socket.on('cursor-move', handleRemoteCursor)
-    socket.on('cursor-leave', handleCursorLeave)
+    const onSaved = () => {
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2200)
+    }
+    const onSaveError = () => {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    }
+
+
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+    socket.on('load-content', onLoad)
+    socket.on('receive-changes', onReceive)
+    socket.on('users-update', onUsers)
+    socket.on('save-success', onSaved)
+    socket.on('save-error', onSaveError)
 
     return () => {
-      socket.off('connect', handleConnect)
-      socket.off('disconnect', handleDisconnect)
-      socket.off('load-content', handleLoad)
-      socket.off('receive-changes', handleReceive)
-      socket.off('users-update', handleUsers)
-      socket.off('save-success', handleSaveSuccess)
-      socket.off('save-error', handleSaveError)
-      socket.off('cursor-move', handleRemoteCursor)
-      socket.off('cursor-leave', handleCursorLeave)
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+      socket.off('load-content', onLoad)
+      socket.off('receive-changes', onReceive)
+      socket.off('users-update', onUsers)
+      socket.off('save-success', onSaved)
+      socket.off('save-error', onSaveError)
     }
   }, [documentId, me])
 
-  // ============================================
-  // EFFECT: 🔥 Save on refresh/close
-  // ============================================
+  // Flush on the way out, so a refresh never costs a sentence.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const onLeave = () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       socket.emit('save-document', {
         documentId,
         content: latestTextRef.current,
+        runs: encode(latestAuthorsRef.current),
       })
-      socket.emit('cursor-leave', { documentId, userId: me.id })
     }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('beforeunload', onLeave)
+    return () => window.removeEventListener('beforeunload', onLeave)
   }, [documentId, me])
 
-  // ============================================
-  // HANDLER: Typing in editor
-  // ============================================
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value
-    setText(newText)
-    latestTextRef.current = newText
+    const next = e.target.value
+    const nextAuthors = attribute(latestTextRef.current, latestAuthorsRef.current, next, me.id)
+    const runs = encode(nextAuthors)
 
-    socket.emit('send-changes', { documentId, content: newText })
+    setText(next)
+    setAuthors(nextAuthors)
+    latestTextRef.current = next
+    latestAuthorsRef.current = nextAuthors
+
+    socket.emit('send-changes', { documentId, content: next, runs })
 
     setSaveStatus('saving')
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     saveTimeoutRef.current = window.setTimeout(() => {
-      socket.emit('save-document', { documentId, content: newText })
+      socket.emit('save-document', { documentId, content: next, runs })
     }, 1000)
   }
 
-  // ============================================
-  // HANDLER: Mouse move → broadcast cursor position
-  // ============================================
-  const handleMouseMove = useRef(
-    throttle((e: MouseEvent<HTMLDivElement>) => {
-      if (!canvasRef.current) return
-      const rect = canvasRef.current.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      socket.emit('cursor-move', {
-        documentId,
-        userId: me.id,
-        x,
-        y,
-      })
-    }, 50)
-  ).current
-
-  // ============================================
-  // DERIVED VALUES
-  // ============================================
-  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0
-  const charCount = text.length
-  const lineCount = text ? text.split('\n').length : 1
-
-  // Detect if doc has real user content (more than just the starter)
-  const isFreshDoc = !text.trim() || text.trim() === STARTER_TEXT.trim()
-
-  const othersOnline = onlineUsers.filter(u => u.id !== me.id)
-  const totalHere = onlineUsers.length || 1
 
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
       setCopied(true)
-      setSidebarOpen(false) // auto-close on mobile
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // silent
+      /* clipboard unavailable */
     }
   }
 
@@ -269,262 +233,189 @@ function App() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(href)
-    setSidebarOpen(false) // auto-close on mobile
   }
 
-  // Map userId → User for cursor colors
-  const userById = Object.fromEntries(onlineUsers.map(u => [u.id, u]))
+  /** Text split into contiguous same-author spans, for the coloured layer. */
+  const spans = useMemo(() => toSpans(text, authors), [text, authors])
 
-  // ============================================
-  // RENDER
-  // ============================================
+  const colorFor = (id: string) => {
+    if (!id) return undefined // unowned text (the seeded starter) keeps the ink colour
+    if (id === me.id) return me.color
+    return roster[id]?.color
+  }
+
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0
+  const chars = text.length
+  const lines = text ? text.split('\n').length : 1
+  const isFresh = !text.trim() || text.trim() === STARTER_TEXT.trim()
+
+  const others = onlineUsers.filter((u) => u.id !== me.id)
+  const here = others.length + 1
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+
   return (
-    <div className={`app ${sidebarOpen ? 'app--sidebar-open' : ''}`}>
-      {/* Aurora background */}
-      <div className="aurora" aria-hidden />
-      <div className="grain" aria-hidden />
-
-      {/* Mobile backdrop (tap to close sidebar) */}
-      <div
-        className="sidebar-backdrop"
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden
-      />
-
-      {/* ============ SIDEBAR ============ */}
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">§</div>
-          <div className="brand-name">Synsia</div>
-        </div>
-
-        <div className="side-section">
-          <div className="side-label">
-            <span>Document</span>
-          </div>
-          <div className="nav-item nav-item--active">
-            <span className="bullet" />
-            <span className="nav-text">{documentId}</span>
-          </div>
-        </div>
-
-        <div className="side-section">
-          <div className="side-label">
-            <span>Here now</span>
-            <span className="count-pill">{totalHere}</span>
-          </div>
-          <div className="user-card">
-            <div className="user-row">
-              <div className="user-avatar" style={{ background: me.color }}>
-                {me.name[0]}
-              </div>
-              <span className="user-name">{me.name}</span>
-              <span className="user-badge">you</span>
-            </div>
-            {othersOnline.slice(0, 5).map(u => (
-              <div key={u.id} className="user-row">
-                <div className="user-avatar" style={{ background: u.color }}>
-                  {u.name[0]}
-                </div>
-                <span className="user-name">{u.name}</span>
-              </div>
-            ))}
-            {othersOnline.length > 5 && (
-              <div className="user-row">
-                <div className="user-avatar user-avatar--more">+{othersOnline.length - 5}</div>
-                <span className="user-name">more</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="side-section">
-          <div className="side-label">
-            <span>Actions</span>
-          </div>
-          <button className="side-action" onClick={copyLink}>
-            {copied ? (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 1 0 7.07 7.07l1.71-1.71" />
-              </svg>
-            )}
-            <span>{copied ? 'Link copied' : 'Copy link'}</span>
-          </button>
-          <button className="side-action" onClick={downloadMarkdown}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span>Download .md</span>
-          </button>
-        </div>
-
-        <div className="side-foot">
-          <span className={`foot-dot ${saveStatus === 'error' ? 'foot-dot--error' : ''}`} />
-          <span>
-            {saveStatus === 'saving' ? 'Saving…' :
-             saveStatus === 'error' ? 'Connection lost' :
-             'All changes saved'}
+    <div className="app" data-surface>
+      {/* ---------------- Masthead ---------------- */}
+      <header className="mast" data-surface>
+        <div className="logo" aria-label="Synsia">
+          {/* Narrow screens get the mark rather than a clipped word — "Syn"
+              reads as a bug, "§" reads as a decision. */}
+          <span className="logo-mark" aria-hidden>
+            §
+          </span>
+          <span className="logo-word" aria-hidden>
+            Syn<span>sia</span>
           </span>
         </div>
-      </aside>
+        <div className="docchip">{documentId}</div>
 
-      {/* ============ MAIN ============ */}
-      <div className="main">
-        {/* TOPBAR */}
-        <header className="topbar">
-          <button
-            className="menu-btn"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label="Toggle sidebar"
-          >
-            <span /><span /><span />
-          </button>
+        <div className="spacer" />
 
-          <nav className="crumbs">
-            <span className="crumbs-root">Workspace</span>
-            <span className="crumbs-sep">/</span>
-            <span className="crumbs-current">{documentId}</span>
-          </nav>
-
-          <div className="tools">
-            <div className={`status-chip ${isConnected ? 'status-chip--on' : 'status-chip--off'}`}>
-              <span className="status-dot" />
-              {isConnected ? 'Live' : 'Offline'}
-            </div>
-
-            <button className="btn-mono" onClick={() => setIsPreview(!isPreview)}>
-              {isPreview ? 'Edit' : 'Preview'}
-            </button>
-          </div>
-        </header>
-
-        {/* DOCUMENT HEADER — full on fresh docs, slim once user is writing */}
-        {isFreshDoc ? (
-          <div className="dochead">
-            <div className="eyebrow">
-              <span className="eyebrow-line" />
-              <span>A notepad · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
-            </div>
-            <h1 className="doc-title">
-              A small place to <em>think</em> out loud
-            </h1>
-            <div className="doc-meta">
-              <span className="meta-chip">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                Fresh page
-              </span>
-              <span className="meta-dot" />
-              <span className="meta-chip">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                </svg>
-                {totalHere > 1 ? `${totalHere} writing together` : 'Just you'}
-              </span>
-              <span className="meta-dot" />
-              <span className="meta-chip">Syncs live</span>
-            </div>
-          </div>
-        ) : (
-          <div className="dochead dochead--slim">
-            <span className="slim-eyebrow">
-              <span className="eyebrow-line" />
-              {totalHere > 1
-                ? `${totalHere} writing together`
-                : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+        <div className="faces" title={`${here} here now — ${[me, ...others].map((u) => u.name).join(', ')}`}>
+          <span className="face" style={{ background: me.color }} aria-label={`${me.name} (you)`}>
+            {me.name[0]}
+          </span>
+          {others.slice(0, 3).map((u) => (
+            <span key={u.id} className="face" style={{ background: u.color }} aria-label={u.name}>
+              {u.name[0]}
             </span>
-          </div>
-        )}
+          ))}
+          {others.length > 3 ? <span className="face face--more">+{others.length - 3}</span> : null}
+        </div>
 
-        {/* CANVAS */}
-        <main
-          className="canvas"
-          ref={canvasRef}
-          onMouseMove={handleMouseMove}
+        <div className={`livechip ${isConnected ? 'livechip--on' : 'livechip--off'}`}>
+          <i />
+          <span>{isConnected ? 'Live' : 'Offline'}</span>
+        </div>
+
+        <button
+          className={`iconbtn ${copied ? 'iconbtn--done' : ''}`}
+          onClick={copyLink}
+          aria-label={copied ? 'Link copied' : 'Copy link'}
+          title={copied ? 'Link copied' : 'Copy link'}
         >
+          {copied ? Icon.check : Icon.link}
+        </button>
+        <button className="iconbtn" onClick={downloadMarkdown} aria-label="Download as Markdown" title="Download .md">
+          {Icon.down}
+        </button>
+        <button
+          className="iconbtn"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+          title={theme === 'dark' ? 'Light' : 'Dark'}
+        >
+          {theme === 'dark' ? Icon.sun : Icon.moon}
+        </button>
+
+        <div className="seg">
+          <button onClick={() => setIsPreview(false)} aria-pressed={!isPreview}>
+            Write
+          </button>
+          <button onClick={() => setIsPreview(true)} aria-pressed={isPreview}>
+            Read
+          </button>
+        </div>
+      </header>
+
+      {/* ---------------- Headline band ---------------- */}
+      {isFresh ? (
+        <div className="band" data-surface>
+          <div className="band-inner">
+            <div>
+              <div className="kicker">A shared notepad · {today}</div>
+              <h1 className="headline">A small place to think out loud</h1>
+            </div>
+            <div className="tallies">
+              <div className="tally">
+                <i>Words</i>
+                <b>{words.toLocaleString()}</b>
+              </div>
+              <div className="tally">
+                <i>Here now</i>
+                <b>{here}</b>
+              </div>
+              <div className="tally">
+                <i>State</i>
+                <b>{saveStatus === 'error' ? 'Unsaved' : 'Saved'}</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="band band--slim" data-surface>
+          <div className="band-inner">
+            <div className="kicker">
+              {here > 1 ? `${here} writing together` : `A shared notepad · ${today}`}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- Workspace ---------------- */}
+      <main className="work" ref={workRef}>
+        <div className="measure">
           {isPreview ? (
-            <article className="preview">
+            <article className="reader">
               {text.trim() ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
               ) : (
-                <p className="preview-empty">Nothing to preview yet.</p>
+                <p className="reader-empty">Nothing to read yet.</p>
               )}
             </article>
           ) : (
-            <div className="edit-wrap">
+            /* The textarea keeps the caret, selection and IME behaviour, but
+               cannot colour its own text — so its text is transparent and an
+               identically-styled layer behind it does the colouring. */
+            <div className="editor-stack">
+              <pre className="editor-ink" aria-hidden>
+                {spans.map((sp, i) => (
+                  <span key={i} style={{ color: colorFor(sp.author) }}>
+                    {sp.text}
+                  </span>
+                ))}
+                {/* A <pre> drops a trailing blank line where the textarea keeps
+                    one, which would drift the two layers apart by a line. */}
+                {'\n'}
+              </pre>
               <textarea
-                ref={textareaRef}
                 className="editor"
                 value={text}
                 onChange={handleChange}
                 placeholder="Begin wherever you like. It saves itself."
                 spellCheck={false}
                 autoFocus
+                aria-label="Document text"
+                style={{ caretColor: me.color }}
               />
             </div>
           )}
+        </div>
 
-          {/* Remote cursors */}
-          {Object.entries(remoteCursors).map(([uid, pos]) => {
-            const u = userById[uid]
-            if (!u || uid === me.id) return null
-            return (
-              <div
-                key={uid}
-                className="remote-cursor"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-              >
-                <svg
-                  className="cursor-arrow"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill={u.color}
-                >
-                  <path d="M1 1 L1 12 L4.5 9 L7 14.5 L9.5 13.5 L7 8 L11.5 8 Z" />
-                </svg>
-                <span className="cursor-label" style={{ background: u.color }}>
-                  {u.name}
-                </span>
-              </div>
-            )
-          })}
-        </main>
+      </main>
 
-        {/* COLOPHON (your signature) */}
-        <footer className="colophon">
-          <div className="col-l">
-            <span className="col-stat">{wordCount}</span> words
-            <span className="col-sep">·</span>
-            <span className="col-stat">{charCount}</span> chars
-            <span className="col-sep">·</span>
-            <span className="col-stat">{lineCount}</span> lines
-          </div>
-
-          <div className="col-c">
-            <span className="col-italic">a small tool</span>
-            <span className="col-accent-dot" />
-            <span className="col-italic">made by</span>
-            <span className="col-name">{CREATOR_NAME}</span>
-            <span className="col-accent-dot" />
-            <span className="col-italic">with care</span>
-          </div>
-
-          <div className="col-r">
-            Markdown<span className="col-sep">·</span>UTF-8
-          </div>
-        </footer>
-      </div>
+      {/* ---------------- Status bar ---------------- */}
+      <footer className="status" data-surface>
+        <div className="status-cell">
+          <span
+            className={`save-dot ${
+              saveStatus === 'saving' ? 'save-dot--saving' : saveStatus === 'error' ? 'save-dot--error' : ''
+            }`}
+          />
+          {saveStatus === 'saving' ? 'Saving' : saveStatus === 'error' ? 'Not saved' : 'Saved'}
+        </div>
+        <div className="status-cell status-cell--hide">Markdown</div>
+        <div className="status-cell status-cell--hide">UTF-8</div>
+        <div className="status-cell">
+          {words.toLocaleString()} words · {chars.toLocaleString()} chars · {lines.toLocaleString()} lines
+        </div>
+        <div className="status-cell status-cell--last">
+          made by{' '}
+          <a href="https://abhinavshukla.me" target="_blank" rel="noopener noreferrer">
+            {CREATOR_NAME}
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }
